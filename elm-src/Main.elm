@@ -74,7 +74,7 @@ update msg model =
             ( model, Cmd.none )
 
         SetCounter result ->
-            ( Model <| Debug.log "r" <| Result.mapError toString result
+            ( Model <| Result.mapError toString result
             , Cmd.none
             )
     )
