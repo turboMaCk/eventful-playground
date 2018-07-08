@@ -118,15 +118,9 @@ interactive = do
   putStrLn "  * `-` - decrement counter"
   putStrLn "  * `=` - see current state"
   putStrLn "  * `C-c` - exit"
-  -- First we need to create our in-memory event store.
-  tvar <- ESM.eventMapTVar
 
-  let
-    w = ESM.tvarEventStoreWriter tvar
-    r = ESM.tvarEventStoreReader tvar
-    identi = read "123e4567-e89b-12d3-a456-426655440000"
-
-  forever $ fromArg $ CounterStream identi r w
+  counterStream <- constructStream
+  forever $ fromArg counterStream
 
 
 fromArg :: CounterStream -> IO ()
