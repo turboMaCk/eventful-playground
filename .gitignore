@@ -2,3 +2,5 @@
 eventfull-playground.cabal
 *~
 dist/
+elm-stuff/
+/index.html

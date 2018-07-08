@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Server (start) where
 
@@ -7,6 +8,7 @@ import Servant
 import Network.Wai.Handler.Warp (run)
 import Counter (Counter, CounterEvent, CounterStream)
 import Control.Monad.IO.Class (liftIO)
+import Network.Wai.Middleware.Cors
 import qualified Counter
 
 
@@ -19,7 +21,13 @@ counterApi = Proxy
 
 
 counterApp :: CounterStream -> Application
-counterApp counterStream = serve counterApi $ server counterStream
+counterApp counterStream =
+  cors (const $ Just policy)
+  $ serve counterApi
+  $ server counterStream
+  where
+    policy = simpleCorsResourcePolicy
+            { corsRequestHeaders = [ "content-type" ] }
 
 
 server :: CounterStream -> Server CounterApi
