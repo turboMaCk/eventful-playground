@@ -5,8 +5,9 @@ module Server (start) where
 
 import Servant
 import Network.Wai.Handler.Warp (run)
-import Counter (Counter(..), CounterEvent)
--- import qualified Counter
+import Counter (Counter, CounterEvent, CounterStream)
+import Control.Monad.IO.Class (liftIO)
+import qualified Counter
 
 
 type CounterApi = "counter" :> ReqBody '[JSON] CounterEvent :> Post '[JSON] Counter
@@ -17,20 +18,26 @@ counterApi :: Proxy CounterApi
 counterApi = Proxy
 
 
-counterApp :: Application
-counterApp = serve counterApi server
+counterApp :: CounterStream -> Application
+counterApp counterStream = serve counterApi $ server counterStream
 
 
-server :: Server CounterApi
-server = record :<|> current
+server :: CounterStream -> Server CounterApi
+server counterStream = record :<|> current
   where
     record :: CounterEvent -> Handler Counter
-    record _ =
-      pure $ Counter 0
+    record event = do
+      _ <- liftIO $ Counter.handleEvent counterStream event
+      state <- liftIO $ Counter.getCurrentState counterStream
+      pure state
 
     current :: Handler Counter
-    current = pure $ Counter 0
+    current = do
+      state <- liftIO $ Counter.getCurrentState counterStream
+      pure state
 
 
 start :: IO ()
-start = run 8081 counterApp
+start = do
+  counterStream <- Counter.constructStream
+  run 8081 $ counterApp counterStream
