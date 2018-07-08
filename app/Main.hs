@@ -1,6 +1,6 @@
 module Main where
 
-import qualified Lib
+import qualified Server
 
 main :: IO ()
-main = Lib.run
+main = Server.start

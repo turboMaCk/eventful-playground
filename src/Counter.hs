@@ -1,10 +1,16 @@
-module Lib
-    ( run
+{-# LANGUAGE OverloadedStrings #-}
+
+module Counter
+    ( Counter(..)
+    , CounterEvent
+    , run
     ) where
 
 import Eventful (Projection(..), ExpectedVersion(..), EventStoreWriter, VersionedEventStoreReader, UUID)
 import Control.Concurrent.STM (STM)
 import Control.Monad (forever)
+import Data.Aeson.Types (ToJSON, FromJSON, (.=), (.:))
+import qualified Data.Aeson.Types as AT
 import qualified Eventful
 import qualified Control.Concurrent.STM as STM
 import qualified Eventful.Store.Memory as ESM
@@ -18,7 +24,13 @@ newtype Counter = Counter
   deriving (Show, Eq)
 
 
+instance ToJSON Counter where
+  toJSON (Counter state) = AT.object [ "state" .= state ]
+  toEncoding (Counter state) = AT.pairs ("state" .= state)
+
+
 -- UPDATE
+
 
 data CounterEvent
   = CounterIncremented
@@ -27,12 +39,25 @@ data CounterEvent
   deriving (Show, Eq)
 
 
+instance FromJSON CounterEvent where
+  parseJSON obj@(AT.Object v) = (v .: "msg") >>=
+    \str ->
+        case str of
+            AT.String "Increment" -> pure CounterIncremented
+            AT.String "Decrement" -> pure CounterDecremented
+            AT.String "Reset" -> pure CounterReset
+            _ -> AT.typeMismatch "Event" obj
+  parseJSON invalid = AT.typeMismatch "Event" invalid
+
+
 handleCounterEvent :: Counter -> CounterEvent -> Counter
 handleCounterEvent (Counter count) CounterIncremented = Counter (count + 1)
 handleCounterEvent (Counter count) CounterDecremented = Counter (count - 1)
 handleCounterEvent _ CounterReset = Counter 0
 
+
 type CounterProjection = Projection Counter CounterEvent
+
 
 counterProjection :: CounterProjection
 counterProjection =
@@ -52,10 +77,6 @@ run = do
   let
     writer = ESM.tvarEventStoreWriter tvar
     reader = ESM.tvarEventStoreReader tvar
-
-  -- Lets store some events. Note that the 'atomically' functions is how we
-  -- execute STM actions.
-  let
     uuid = read "123e4567-e89b-12d3-a456-426655440000"
 
   putStrLn "Choose your command!"
@@ -78,7 +99,6 @@ interactive uuid reader writer = getLine >>= \input ->
       handleEvent uuid writer CounterDecremented
     _ ->
       putStrLn "UNKNOWN COMMAND"
-
 
 
 getCurrentState :: UUID -> VersionedEventStoreReader STM CounterEvent -> IO Counter
