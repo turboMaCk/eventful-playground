@@ -1,9 +1,9 @@
 module Lib
-    ( counterStoreExample
+    ( run
     ) where
 
 import Eventful (Projection(..), ExpectedVersion(..), EventStoreWriter, VersionedEventStoreReader, UUID)
-import Control.Concurrent.STM (STM, TVar)
+import Control.Concurrent.STM (STM)
 import Control.Monad (forever)
 import qualified Eventful
 import qualified Control.Concurrent.STM as STM
@@ -44,8 +44,8 @@ counterProjection =
 
 -- Store
 
-counterStoreExample :: IO ()
-counterStoreExample = do
+run :: IO ()
+run = do
   -- First we need to create our in-memory event store.
   tvar <- ESM.eventMapTVar
 
@@ -58,13 +58,26 @@ counterStoreExample = do
   let
     uuid = read "123e4567-e89b-12d3-a456-426655440000"
 
-  initial <- getCurrentState uuid reader
-  print initial
-  handleEvent uuid writer CounterIncremented
-  handleEvent uuid writer CounterIncremented
-  handleEvent uuid writer CounterDecremented
-  final <- getCurrentState uuid reader
-  print final
+  putStrLn "Choose your command!"
+  putStrLn "  * `+` - increment counter"
+  putStrLn "  * `-` - decrement counter"
+  putStrLn "  * `=` - see current state"
+  putStrLn "  * `C-c` - exit"
+  forever $ interactive uuid reader writer
+
+
+interactive :: UUID -> VersionedEventStoreReader STM CounterEvent -> EventStoreWriter STM CounterEvent -> IO ()
+interactive uuid reader writer = getLine >>= \input ->
+  case input of
+    "=" -> do
+      state <- getCurrentState uuid reader
+      print state
+    "+" ->
+      handleEvent uuid writer CounterIncremented
+    "-" ->
+      handleEvent uuid writer CounterDecremented
+    _ ->
+      putStrLn "UNKNOWN COMMAND"
 
 
 

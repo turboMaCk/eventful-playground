@@ -3,4 +3,4 @@ module Main where
 import qualified Lib
 
 main :: IO ()
-main = Lib.counterStoreExample
+main = Lib.run
