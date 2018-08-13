@@ -5,6 +5,7 @@ import Html.Events as Events
 import Http exposing (Request)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode exposing (Value)
+import WebSocket
 
 
 main : Program Never Model Msg
@@ -13,8 +14,17 @@ main =
         { init = init
         , update = update
         , view = view
-        , subscriptions = always Sub.none
+        , subscriptions = subscriptions
         }
+
+
+
+-- Subscriptions
+
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    WebSocket.listen "ws://localhost:8081/stream" Echo
 
 
 
@@ -22,7 +32,9 @@ main =
 
 
 type alias Model =
-    { counter : Result String Int }
+    { counter : Result String Int
+    , echo : String
+    }
 
 
 counterDecoder : Decoder Int
@@ -32,7 +44,9 @@ counterDecoder =
 
 init : ( Model, Cmd Msg )
 init =
-    ( Model <| Err "Loading..."
+    ( { counter = Err "Loading..."
+      , echo = ""
+      }
     , getCounter
     )
 
@@ -45,6 +59,7 @@ type Msg
     = Increment
     | Decrement
     | SetCounter (Result Http.Error Int)
+    | Echo String
 
 
 encodeMsg : Msg -> Maybe Value
@@ -74,9 +89,12 @@ update msg model =
             ( model, Cmd.none )
 
         SetCounter result ->
-            ( Model <| Result.mapError toString result
+            ( { model | counter = Result.mapError toString result }
             , Cmd.none
             )
+
+        Echo str ->
+            ( { model | echo = str }, Cmd.none )
     )
         |> Tuple.mapSecond (\cmd -> Cmd.batch [ cmd, sendMsg msg ])
 
@@ -108,20 +126,21 @@ sendMsg msg =
 -- View
 
 
-viewCounter : Int -> List (Html Msg)
+viewCounter : Int -> Html Msg
 viewCounter counter =
-    [ Html.button [ Events.onClick Decrement ] [ Html.text "-" ]
-    , Html.text <| toString counter
-    , Html.button [ Events.onClick Increment ] [ Html.text "+" ]
-    ]
+    Html.div [] <|
+        [ Html.button [ Events.onClick Decrement ] [ Html.text "-" ]
+        , Html.text <| toString counter
+        , Html.button [ Events.onClick Increment ] [ Html.text "+" ]
+        ]
 
 
 view : Model -> Html Msg
-view { counter } =
+view { counter, echo } =
     Result.map viewCounter counter
-        |> Result.mapError (\e -> [ Html.text e ])
+        |> Result.mapError Html.text
         |> unwrap
-        |> Html.main_ []
+        |> (\c -> Html.main_ [] [ c, Html.text echo ])
 
 
 

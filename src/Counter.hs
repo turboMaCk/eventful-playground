@@ -99,12 +99,10 @@ handleEvent (CounterStream { uuid, writter }) event = do
 constructStream :: IO CounterStream
 constructStream = do
   tvar <- ESM.eventMapTVar
-
   let
     w = ESM.tvarEventStoreWriter tvar
     r = ESM.tvarEventStoreReader tvar
     identi = read "123e4567-e89b-12d3-a456-426655440000"
-
   pure $ CounterStream identi r w
 
 
