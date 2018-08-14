@@ -10,6 +10,7 @@ module CounterState
   , initialState
   , current
   , getStream
+  , handleEvent
   )
   where
 
@@ -78,7 +79,9 @@ handleEvent :: CounterEvent -> ServerState -> IO Counter
 handleEvent event state = do
   let stream = counter state
   Counter.handleEvent stream event
+  broadcast state
   current state
+
 
 getStream :: ServerState -> CounterStream
 getStream = counter

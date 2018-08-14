@@ -25,30 +25,23 @@ counterApi :: Proxy CounterApi
 counterApi = Proxy
 
 
-counterApp :: CounterStream -> CS.ServerState -> Application
-counterApp counterStream state =
+counterApp :: CS.ServerState -> Application
+counterApp state =
   cors (const $ Just policy)
   $ serve counterApi
-  $ server counterStream state
+  $ server state
   where
     policy = simpleCorsResourcePolicy { corsRequestHeaders = [ "content-type" ] }
 
 
-server :: CounterStream -> CS.ServerState -> Server CounterApi
-server counterStream serverState = record :<|> current :<|> streamData
+server :: CS.ServerState -> Server CounterApi
+server serverState = record :<|> current :<|> streamData
   where
     record :: CounterEvent -> Handler Counter
-    record event = liftIO $ do
-      Counter.handleEvent counterStream event
-      state <- Counter.getCurrentState counterStream
-      CS.broadcast serverState
-
-      pure state
+    record event = liftIO $ CS.handleEvent event serverState
 
     current :: Handler Counter
-    current = do
-      state <- liftIO $ Counter.getCurrentState counterStream
-      pure state
+    current = liftIO $ CS.current serverState
 
     streamData :: MonadIO m => WS.Connection -> m ()
     streamData = liftIO . CS.newConnection serverState
@@ -57,5 +50,4 @@ server counterStream serverState = record :<|> current :<|> streamData
 start :: IO ()
 start = do
   state <- CS.initialState
-  let counterStream = CS.getStream state
-  run 8081 $ counterApp counterStream state
+  run 8081 $ counterApp state
