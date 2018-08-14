@@ -108,16 +108,12 @@ update msg model =
 
         Increment2 ->
             ( model
-            , encodeEvent Increment
-                |> Encode.encode 0
-                |> WebSocket.send streamUri
+            , emitEvent Increment
             )
 
         Decrement2 ->
             ( model
-            , encodeEvent Decrement
-                |> Encode.encode 0
-                |> WebSocket.send streamUri
+            , emitEvent Decrement
             )
 
         WSSetCounter str ->
@@ -141,6 +137,13 @@ sendEvent : Event -> Cmd Msg
 sendEvent event =
     Http.post url (Http.jsonBody <| encodeEvent event) counterDecoder
         |> Http.send SetCounter1
+
+
+emitEvent : Event -> Cmd Msg
+emitEvent event =
+    encodeEvent Decrement
+        |> Encode.encode 0
+        |> WebSocket.send streamUri
 
 
 

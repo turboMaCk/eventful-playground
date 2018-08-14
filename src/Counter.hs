@@ -8,12 +8,10 @@ module Counter
     , constructStream
     , getCurrentState
     , handleEvent
-    , interactive
     ) where
 
 import Eventful (Projection(..), ExpectedVersion(..), EventStoreWriter, VersionedEventStoreReader, UUID)
 import Control.Concurrent.STM (STM)
-import Control.Monad (forever)
 import Data.Aeson.Types (ToJSON, FromJSON, (.=), (.:))
 import qualified Data.Aeson.Types as AT
 import qualified Eventful
@@ -104,32 +102,3 @@ constructStream = do
     r = ESM.tvarEventStoreReader tvar
     identi = read "123e4567-e89b-12d3-a456-426655440000"
   pure $ CounterStream identi r w
-
-
--- CLI
-
-
-interactive :: IO ()
-interactive = do
-  putStrLn "Choose your command!"
-  putStrLn "  * `+` - increment counter"
-  putStrLn "  * `-` - decrement counter"
-  putStrLn "  * `=` - see current state"
-  putStrLn "  * `C-c` - exit"
-
-  counterStream <- constructStream
-  forever $ fromArg counterStream
-
-
-fromArg :: CounterStream -> IO ()
-fromArg stream = getLine >>= \input ->
-  case input of
-    "=" -> do
-      state <- getCurrentState stream
-      print state
-    "+" ->
-      handleEvent stream CounterIncremented
-    "-" ->
-      handleEvent stream CounterDecremented
-    _ ->
-      putStrLn "UNKNOWN COMMAND"
