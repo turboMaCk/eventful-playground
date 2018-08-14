@@ -60,6 +60,11 @@ init =
 -- Update
 
 
+type Event
+    = Increment
+    | Decrement
+
+
 type Msg
     = Increment1
     | Decrement1
@@ -69,31 +74,32 @@ type Msg
     | WSSetCounter String
 
 
-encodeMsg : Msg -> Maybe Value
-encodeMsg msg =
+encodeEvent : Event -> Value
+encodeEvent event =
     let
-        maybe =
-            case msg of
-                Increment1 ->
-                    Just "Increment"
+        e =
+            case event of
+                Increment ->
+                    "Increment"
 
-                Decrement1 ->
-                    Just "Decrement"
-
-                _ ->
-                    Nothing
+                Decrement ->
+                    "Decrement"
     in
-    Maybe.map (\str -> Encode.object [ ( "msg", Encode.string str ) ]) maybe
+    Encode.object [ ( "msg", Encode.string e ) ]
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    (case msg of
+    case msg of
         Increment1 ->
-            ( model, Cmd.none )
+            ( model
+            , sendEvent Increment
+            )
 
         Decrement1 ->
-            ( model, Cmd.none )
+            ( model
+            , sendEvent Decrement
+            )
 
         SetCounter1 result ->
             ( { model | counter1 = Result.mapError toString result }
@@ -102,24 +108,22 @@ update msg model =
 
         Increment2 ->
             ( model
-            , encodeMsg Increment1
-                |> Maybe.map (WebSocket.send streamUri << Encode.encode 0)
-                |> Maybe.withDefault Cmd.none
+            , encodeEvent Increment
+                |> Encode.encode 0
+                |> WebSocket.send streamUri
             )
 
         Decrement2 ->
             ( model
-            , encodeMsg Decrement1
-                |> Maybe.map (WebSocket.send streamUri << Encode.encode 0)
-                |> Maybe.withDefault Cmd.none
+            , encodeEvent Decrement
+                |> Encode.encode 0
+                |> WebSocket.send streamUri
             )
 
         WSSetCounter str ->
             ( { model | counter2 = Decode.decodeString counterDecoder str }
             , Cmd.none
             )
-    )
-        |> Tuple.mapSecond (\cmd -> Cmd.batch [ cmd, sendMsg msg ])
 
 
 url : String
@@ -133,16 +137,10 @@ getCounter =
         |> Http.send SetCounter1
 
 
-sendMsg : Msg -> Cmd Msg
-sendMsg msg =
-    let
-        send json =
-            Http.post url (Http.jsonBody json) counterDecoder
-                |> Http.send SetCounter1
-    in
-    encodeMsg msg
-        |> Maybe.map send
-        |> Maybe.withDefault Cmd.none
+sendEvent : Event -> Cmd Msg
+sendEvent event =
+    Http.post url (Http.jsonBody <| encodeEvent event) counterDecoder
+        |> Http.send SetCounter1
 
 
 
