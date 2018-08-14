@@ -5,6 +5,7 @@ import Html.Events as Events
 import Http exposing (Request)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode exposing (Value)
+import WebSocket
 
 
 main : Program Never Model Msg
@@ -13,8 +14,22 @@ main =
         { init = init
         , update = update
         , view = view
-        , subscriptions = always Sub.none
+        , subscriptions = subscriptions
         }
+
+
+
+-- Subscriptions
+
+
+streamUri : String
+streamUri =
+    "ws://localhost:8081/stream"
+
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    WebSocket.listen streamUri WSSetCounter
 
 
 
@@ -22,7 +37,9 @@ main =
 
 
 type alias Model =
-    { counter : Result String Int }
+    { counter1 : Result String Int
+    , counter2 : Result String Int
+    }
 
 
 counterDecoder : Decoder Int
@@ -32,7 +49,9 @@ counterDecoder =
 
 init : ( Model, Cmd Msg )
 init =
-    ( Model <| Err "Loading..."
+    ( { counter1 = Err "Loading..."
+      , counter2 = Err "Connecting to stream"
+      }
     , getCounter
     )
 
@@ -41,44 +60,70 @@ init =
 -- Update
 
 
-type Msg
+type Event
     = Increment
     | Decrement
-    | SetCounter (Result Http.Error Int)
 
 
-encodeMsg : Msg -> Maybe Value
-encodeMsg msg =
+type Msg
+    = Increment1
+    | Decrement1
+    | SetCounter1 (Result Http.Error Int)
+    | Increment2
+    | Decrement2
+    | WSSetCounter String
+
+
+encodeEvent : Event -> Value
+encodeEvent event =
     let
-        maybe =
-            case msg of
+        e =
+            case event of
                 Increment ->
-                    Just "Increment"
+                    "Increment"
 
                 Decrement ->
-                    Just "Decrement"
-
-                _ ->
-                    Nothing
+                    "Decrement"
     in
-    Maybe.map (\str -> Encode.object [ ( "msg", Encode.string str ) ]) maybe
+    Encode.object [ ( "msg", Encode.string e ) ]
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    (case msg of
-        Increment ->
-            ( model, Cmd.none )
+    case msg of
+        Increment1 ->
+            ( model
+            , sendEvent Increment
+            )
 
-        Decrement ->
-            ( model, Cmd.none )
+        Decrement1 ->
+            ( model
+            , sendEvent Decrement
+            )
 
-        SetCounter result ->
-            ( Model <| Result.mapError toString result
+        SetCounter1 result ->
+            ( { model | counter1 = Result.mapError toString result }
             , Cmd.none
             )
-    )
-        |> Tuple.mapSecond (\cmd -> Cmd.batch [ cmd, sendMsg msg ])
+
+        Increment2 ->
+            ( model
+            , encodeEvent Increment
+                |> Encode.encode 0
+                |> WebSocket.send streamUri
+            )
+
+        Decrement2 ->
+            ( model
+            , encodeEvent Decrement
+                |> Encode.encode 0
+                |> WebSocket.send streamUri
+            )
+
+        WSSetCounter str ->
+            ( { model | counter2 = Decode.decodeString counterDecoder str }
+            , Cmd.none
+            )
 
 
 url : String
@@ -89,39 +134,45 @@ url =
 getCounter : Cmd Msg
 getCounter =
     Http.get url counterDecoder
-        |> Http.send SetCounter
+        |> Http.send SetCounter1
 
 
-sendMsg : Msg -> Cmd Msg
-sendMsg msg =
-    let
-        send json =
-            Http.post url (Http.jsonBody json) counterDecoder
-                |> Http.send SetCounter
-    in
-    encodeMsg msg
-        |> Maybe.map send
-        |> Maybe.withDefault Cmd.none
+sendEvent : Event -> Cmd Msg
+sendEvent event =
+    Http.post url (Http.jsonBody <| encodeEvent event) counterDecoder
+        |> Http.send SetCounter1
 
 
 
 -- View
 
 
-viewCounter : Int -> List (Html Msg)
-viewCounter counter =
-    [ Html.button [ Events.onClick Decrement ] [ Html.text "-" ]
-    , Html.text <| toString counter
-    , Html.button [ Events.onClick Increment ] [ Html.text "+" ]
-    ]
+viewCounter : ( Msg, Msg ) -> Int -> Html Msg
+viewCounter ( increment, decrement ) counter =
+    Html.div [] <|
+        [ Html.button [ Events.onClick decrement ] [ Html.text "-" ]
+        , Html.text <| toString counter
+        , Html.button [ Events.onClick increment ] [ Html.text "+" ]
+        ]
+
+
+viewHttpCounter : ( Msg, Msg ) -> Result String Int -> Html Msg
+viewHttpCounter ( increment, decrement ) counter =
+    Result.map (viewCounter ( increment, decrement )) counter
+        |> Result.mapError Html.text
+        |> unwrap
+        |> List.singleton
+        |> Html.div []
 
 
 view : Model -> Html Msg
-view { counter } =
-    Result.map viewCounter counter
-        |> Result.mapError (\e -> [ Html.text e ])
-        |> unwrap
-        |> Html.main_ []
+view { counter1, counter2 } =
+    Html.main_ []
+        [ Html.p [] [ Html.text "This counter uses JSON api to send events to the server." ]
+        , viewHttpCounter ( Increment1, Decrement1 ) counter1
+        , Html.p [] [ Html.text "This counter uses WebSockets to observe changes on server and push updates back." ]
+        , viewHttpCounter ( Increment2, Decrement2 ) counter2
+        ]
 
 
 

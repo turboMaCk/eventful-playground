@@ -1,0 +1,37 @@
+# -*- restclient -*-
+#
+# This is [restclient](https://github.com/pashky/restclient.el) compatible file. Find support for your editor.
+# Emacs, Vim & VSCode has implementation of this standard
+#
+
+#
+# Setup
+#
+:url = http://localhost:8081
+
+:headers = <<
+Content-Type: application/json
+
+#
+# get current state of counter
+#
+GET :url/counter
+:headers
+
+{}
+
+#
+# Increment counter
+#
+POST :url/xlsx/query-builder/generate
+:headers
+
+{
+    "msg": "Increment"
+}
+
+
+
+GET https://google.com
+
+{}
