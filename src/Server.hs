@@ -13,6 +13,7 @@ import Servant.API.WebSocket (WebSocket)
 import qualified CounterState as CS
 import qualified Network.WebSockets as WS
 
+
 -- Api
 
 type CounterApi = "counter" :> ReqBody '[JSON] CounterEvent :> Post '[JSON] Counter
@@ -34,16 +35,16 @@ counterApp state =
 
 
 server :: CS.ServerState -> Server CounterApi
-server serverState = record :<|> current :<|> streamData
+server serverState = record :<|> current :<|> joinStream
   where
     record :: CounterEvent -> Handler Counter
-    record event = liftIO $ CS.handleEvent event serverState
+    record = liftIO . CS.handleEvent serverState
 
     current :: Handler Counter
     current = liftIO $ CS.current serverState
 
-    streamData :: MonadIO m => WS.Connection -> m ()
-    streamData = liftIO . CS.newConnection serverState
+    joinStream :: MonadIO m => WS.Connection -> m ()
+    joinStream = liftIO . CS.newConnection serverState
 
 
 start :: IO ()

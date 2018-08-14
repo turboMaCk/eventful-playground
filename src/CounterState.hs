@@ -61,21 +61,23 @@ newConnection state conn = do
 broadcast :: ServerState -> IO ()
 broadcast state = do
     clients <- Concurrent.readMVar $ clients state
-    -- counterState <- Counter.getCurrentState $ counter state
+    counter <- current state
     forM_ clients $
       \conn -> do
-        nState <- current state
-        WS.sendTextData conn $ Aeson.encode nState
+        WS.sendTextData conn $ Aeson.encode counter
 
 
 handle :: Client -> ServerState -> IO ()
 handle conn state = forever $ do
-  (msg :: Text.Text) <- WS.receiveData conn
-  broadcast state
+  msg <- WS.receiveData conn
+  case Aeson.decode msg of
+    Just event -> handleEvent state event
+    -- @TODO: handle decoding error here
+    Nothing -> current state
 
 
-handleEvent :: CounterEvent -> ServerState -> IO Counter
-handleEvent event state = do
+handleEvent :: ServerState -> CounterEvent -> IO Counter
+handleEvent state event = do
   let stream = counter state
   Counter.handleEvent stream event
   broadcast state
