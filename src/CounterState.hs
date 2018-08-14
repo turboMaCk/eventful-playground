@@ -8,11 +8,13 @@ module CounterState
   , newConnection
   , broadcast
   , initialState
+  , current
+  , getStream
   )
   where
 
 import Control.Concurrent (MVar)
-import Counter (CounterStream)
+import Counter (CounterStream, Counter)
 import Control.Monad (forM_, forever)
 import Counter (CounterEvent)
 import qualified Counter
@@ -25,39 +27,58 @@ import qualified Data.Aeson as Aeson
 type Client = WS.Connection
 
 data ServerState = ServerState
-  { clients :: [Client]
+  { clients :: MVar [Client]
   , counter :: CounterStream
   }
 
 
-initialState :: CounterStream -> ServerState
-initialState = ServerState []
+initialState :: IO ServerState
+initialState = do
+  counter <- Counter.constructStream
+  clients <- Concurrent.newMVar []
+  pure (ServerState clients counter)
 
 
-addClient :: Client -> ServerState -> ServerState
-addClient client state = state { clients = client : clients state }
+current :: ServerState -> IO Counter
+current server =
+  Counter.getCurrentState $ counter server
 
 
-newConnection :: CounterStream -> MVar ServerState -> WS.Connection -> IO ()
-newConnection counterStream state conn = do
-  Concurrent.modifyMVar_ state $ \s -> do
-        counterState <- Counter.getCurrentState counterStream
-        WS.sendTextData conn (Text.pack $ show counterState)
-        pure $ addClient conn s
+addClient :: Client -> [Client] -> [Client]
+addClient client clients = client : clients
+
+
+newConnection :: ServerState -> WS.Connection -> IO ()
+newConnection state conn = do
+  counterState <- current state
+  Concurrent.modifyMVar_ (clients state) $ \clients -> do
+        WS.sendTextData conn (Aeson.encode counterState)
+        pure $ addClient conn clients
   WS.forkPingThread conn 30
   handle conn state
 
 
-broadcast :: CounterEvent -> MVar ServerState -> IO ()
-broadcast event state = do
-    unpacked <- Concurrent.readMVar state
-    counterState <- Counter.getCurrentState $ counter unpacked
-    forM_ (clients unpacked) $
-      \conn -> WS.sendTextData conn $ Text.pack ""
+broadcast :: ServerState -> IO ()
+broadcast state = do
+    clients <- Concurrent.readMVar $ clients state
+    -- counterState <- Counter.getCurrentState $ counter state
+    forM_ clients $
+      \conn -> do
+        nState <- current state
+        WS.sendTextData conn $ Aeson.encode nState
 
 
-handle :: Client -> MVar ServerState -> IO ()
+handle :: Client -> ServerState -> IO ()
 handle conn state = forever $ do
   (msg :: Text.Text) <- WS.receiveData conn
-  -- Concurrent.readMVar state >>= broadcast
-  pure ()
+  broadcast state
+
+
+handleEvent :: CounterEvent -> ServerState -> IO Counter
+handleEvent event state = do
+  let stream = counter state
+  Counter.handleEvent stream event
+  current state
+
+getStream :: ServerState -> CounterStream
+getStream = counter
