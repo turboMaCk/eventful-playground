@@ -6,13 +6,12 @@ module Server (start) where
 
 import Servant
 import Network.Wai.Handler.Warp (run)
-import Counter (Counter, CounterEvent, CounterStream)
+import Counter (Counter, CounterEvent)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Network.Wai.Middleware.Cors (cors, corsRequestHeaders, simpleCorsResourcePolicy)
 import Servant.API.WebSocket (WebSocket)
 import qualified CounterState as CS
 import qualified Network.WebSockets as WS
-import qualified Counter
 
 -- Api
 

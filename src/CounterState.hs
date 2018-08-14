@@ -9,7 +9,6 @@ module CounterState
   , broadcast
   , initialState
   , current
-  , getStream
   , handleEvent
   )
   where
@@ -81,7 +80,3 @@ handleEvent event state = do
   Counter.handleEvent stream event
   broadcast state
   current state
-
-
-getStream :: ServerState -> CounterStream
-getStream = counter
