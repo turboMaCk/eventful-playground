@@ -24,7 +24,7 @@ main =
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    WebSocket.listen "ws://localhost:8081/stream" Echo
+    WebSocket.listen "ws://localhost:8081/stream" WSSetCounter
 
 
 
@@ -32,8 +32,8 @@ subscriptions _ =
 
 
 type alias Model =
-    { counter : Result String Int
-    , echo : String
+    { counter1 : Result String Int
+    , counter2 : Result String Int
     }
 
 
@@ -44,8 +44,8 @@ counterDecoder =
 
 init : ( Model, Cmd Msg )
 init =
-    ( { counter = Err "Loading..."
-      , echo = ""
+    ( { counter1 = Err "Loading..."
+      , counter2 = Err "Connecting to stream"
       }
     , getCounter
     )
@@ -56,10 +56,10 @@ init =
 
 
 type Msg
-    = Increment
-    | Decrement
-    | SetCounter (Result Http.Error Int)
-    | Echo String
+    = Increment1
+    | Decrement1
+    | SetCounter1 (Result Http.Error Int)
+    | WSSetCounter String
 
 
 encodeMsg : Msg -> Maybe Value
@@ -67,10 +67,10 @@ encodeMsg msg =
     let
         maybe =
             case msg of
-                Increment ->
+                Increment1 ->
                     Just "Increment"
 
-                Decrement ->
+                Decrement1 ->
                     Just "Decrement"
 
                 _ ->
@@ -82,19 +82,21 @@ encodeMsg msg =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     (case msg of
-        Increment ->
+        Increment1 ->
             ( model, Cmd.none )
 
-        Decrement ->
+        Decrement1 ->
             ( model, Cmd.none )
 
-        SetCounter result ->
-            ( { model | counter = Result.mapError toString result }
+        SetCounter1 result ->
+            ( { model | counter1 = Result.mapError toString result }
             , Cmd.none
             )
 
-        Echo str ->
-            ( { model | echo = str }, Cmd.none )
+        WSSetCounter str ->
+            ( { model | counter2 = Decode.decodeString counterDecoder str }
+            , Cmd.none
+            )
     )
         |> Tuple.mapSecond (\cmd -> Cmd.batch [ cmd, sendMsg msg ])
 
@@ -107,7 +109,7 @@ url =
 getCounter : Cmd Msg
 getCounter =
     Http.get url counterDecoder
-        |> Http.send SetCounter
+        |> Http.send SetCounter1
 
 
 sendMsg : Msg -> Cmd Msg
@@ -115,7 +117,7 @@ sendMsg msg =
     let
         send json =
             Http.post url (Http.jsonBody json) counterDecoder
-                |> Http.send SetCounter
+                |> Http.send SetCounter1
     in
     encodeMsg msg
         |> Maybe.map send
@@ -126,21 +128,27 @@ sendMsg msg =
 -- View
 
 
-viewCounter : Int -> Html Msg
-viewCounter counter =
+viewCounter : ( Msg, Msg ) -> Int -> Html Msg
+viewCounter ( increment, decrement ) counter =
     Html.div [] <|
-        [ Html.button [ Events.onClick Decrement ] [ Html.text "-" ]
+        [ Html.button [ Events.onClick decrement ] [ Html.text "-" ]
         , Html.text <| toString counter
-        , Html.button [ Events.onClick Increment ] [ Html.text "+" ]
+        , Html.button [ Events.onClick increment ] [ Html.text "+" ]
         ]
 
 
-view : Model -> Html Msg
-view { counter, echo } =
-    Result.map viewCounter counter
+viewHttpCounter : Result String Int -> Html Msg
+viewHttpCounter counter =
+    Result.map (viewCounter ( Increment1, Decrement1 )) counter
         |> Result.mapError Html.text
         |> unwrap
-        |> (\c -> Html.main_ [] [ c, Html.text echo ])
+        |> List.singleton
+        |> Html.div []
+
+
+view : Model -> Html Msg
+view { counter1 } =
+    viewHttpCounter counter1
 
 
 

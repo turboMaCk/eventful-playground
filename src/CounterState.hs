@@ -1,9 +1,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE NamedFieldPuns #-}
 
 module CounterState
-  (Client
+  ( Client
   , ServerState
   , newConnection
   , broadcast
@@ -26,6 +25,7 @@ import qualified Data.Aeson as Aeson
 
 type Client = (Int, WS.Connection)
 
+
 data ServerState = ServerState
   { clients :: MVar [Client]
   , counter :: CounterStream
@@ -34,9 +34,9 @@ data ServerState = ServerState
 
 initialState :: IO ServerState
 initialState = do
-  counter <- Counter.constructStream
-  clients <- Concurrent.newMVar []
-  pure (ServerState clients counter)
+  counter' <- Counter.constructStream
+  cs <- Concurrent.newMVar []
+  pure (ServerState cs counter')
 
 
 current :: ServerState -> IO Counter
@@ -51,7 +51,7 @@ addClient conn xs@((prevId,_):_) = (newId, (newId, conn) : xs)
 
 
 removeClient :: Int -> [Client] -> [Client]
-removeClient connId clients = filter ((/= connId) . fst) clients
+removeClient connId = filter ((/= connId) . fst)
 
 
 newConnection :: ServerState -> WS.Connection -> IO ()
@@ -78,11 +78,11 @@ newConnection state conn = do
 
 broadcast :: ServerState -> IO ()
 broadcast state = do
-    clients <- Concurrent.readMVar $ clients state
-    counter <- current state
-    forM_ clients $
+    cs <- Concurrent.readMVar $ clients state
+    counter' <- current state
+    forM_ cs $
       \(_, conn) -> do
-        WS.sendTextData conn $ Aeson.encode counter
+        WS.sendTextData conn $ Aeson.encode counter'
 
 
 handle :: WS.Connection -> ServerState -> IO ()
