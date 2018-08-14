@@ -22,9 +22,14 @@ main =
 -- Subscriptions
 
 
+streamUri : String
+streamUri =
+    "ws://localhost:8081/stream"
+
+
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    WebSocket.listen "ws://localhost:8081/stream" WSSetCounter
+    WebSocket.listen streamUri WSSetCounter
 
 
 
@@ -59,6 +64,8 @@ type Msg
     = Increment1
     | Decrement1
     | SetCounter1 (Result Http.Error Int)
+    | Increment2
+    | Decrement2
     | WSSetCounter String
 
 
@@ -91,6 +98,20 @@ update msg model =
         SetCounter1 result ->
             ( { model | counter1 = Result.mapError toString result }
             , Cmd.none
+            )
+
+        Increment2 ->
+            ( model
+            , encodeMsg Increment1
+                |> Maybe.map (WebSocket.send streamUri << Encode.encode 0)
+                |> Maybe.withDefault Cmd.none
+            )
+
+        Decrement2 ->
+            ( model
+            , encodeMsg Decrement1
+                |> Maybe.map (WebSocket.send streamUri << Encode.encode 0)
+                |> Maybe.withDefault Cmd.none
             )
 
         WSSetCounter str ->
@@ -137,9 +158,9 @@ viewCounter ( increment, decrement ) counter =
         ]
 
 
-viewHttpCounter : Result String Int -> Html Msg
-viewHttpCounter counter =
-    Result.map (viewCounter ( Increment1, Decrement1 )) counter
+viewHttpCounter : ( Msg, Msg ) -> Result String Int -> Html Msg
+viewHttpCounter ( increment, decrement ) counter =
+    Result.map (viewCounter ( increment, decrement )) counter
         |> Result.mapError Html.text
         |> unwrap
         |> List.singleton
@@ -147,8 +168,13 @@ viewHttpCounter counter =
 
 
 view : Model -> Html Msg
-view { counter1 } =
-    viewHttpCounter counter1
+view { counter1, counter2 } =
+    Html.main_ []
+        [ Html.p [] [ Html.text "This counter uses JSON api to send events to the server." ]
+        , viewHttpCounter ( Increment1, Decrement1 ) counter1
+        , Html.p [] [ Html.text "This counter uses WebSockets to observe changes on server and push updates back." ]
+        , viewHttpCounter ( Increment2, Decrement2 ) counter2
+        ]
 
 
 
