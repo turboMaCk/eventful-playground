@@ -10,7 +10,7 @@
 :url = http://localhost:8081
 
 :headers = <<
-Content-Type: application/json
+Content-Type: Application/JSON
 
 #
 # get current state of counter
@@ -20,18 +20,6 @@ GET :url/counter
 
 {}
 
-#
-# Increment counter
-#
-POST :url/xlsx/query-builder/generate
+POST :url/counter
 :headers
-
-{
-    "msg": "Increment"
-}
-
-
-
-GET https://google.com
-
-{}
+{ "msg": "Increment" }

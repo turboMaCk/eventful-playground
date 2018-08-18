@@ -8,6 +8,23 @@ import Json.Encode as Encode exposing (Value)
 import WebSocket
 
 
+-- Settings
+
+
+streamUri : String
+streamUri =
+    "ws://localhost:8081/counter/stream"
+
+
+url : String
+url =
+    "http://localhost:8081/counter"
+
+
+
+-- Main
+
+
 main : Program Never Model Msg
 main =
     Html.program
@@ -22,18 +39,13 @@ main =
 -- Subscriptions
 
 
-streamUri : String
-streamUri =
-    "ws://localhost:8081/stream"
-
-
 subscriptions : Model -> Sub Msg
 subscriptions _ =
     WebSocket.listen streamUri WSSetCounter
 
 
 
--- MODEL
+-- Model
 
 
 type alias Model =
@@ -57,21 +69,12 @@ init =
 
 
 
--- Update
+-- Events
 
 
 type Event
     = Increment
     | Decrement
-
-
-type Msg
-    = Increment1
-    | Decrement1
-    | SetCounter1 (Result Http.Error Int)
-    | Increment2
-    | Decrement2
-    | WSSetCounter String
 
 
 encodeEvent : Event -> Value
@@ -86,6 +89,45 @@ encodeEvent event =
                     "Decrement"
     in
     Encode.object [ ( "msg", Encode.string e ) ]
+
+
+getCounter : Cmd Msg
+getCounter =
+    Http.get url counterDecoder
+        |> Http.send SetCounter1
+
+
+sendEvent : Event -> Cmd Msg
+sendEvent event =
+    Http.post url (Http.jsonBody <| encodeEvent event) counterDecoder
+        |> Http.send SetCounter1
+
+
+emitEvent : Event -> Cmd Msg
+emitEvent event =
+    encodeEvent event
+        |> Encode.encode 0
+        |> WebSocket.send streamUri
+
+
+getEvents : Cmd Msg
+getEvents =
+    Http.getString (url ++ "/events")
+        |> Http.send SetEvents
+
+
+
+-- Update
+
+
+type Msg
+    = Increment1
+    | Decrement1
+    | SetCounter1 (Result Http.Error Int)
+    | Increment2
+    | Decrement2
+    | WSSetCounter String
+    | SetEvents (Result Http.Error String)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -108,7 +150,7 @@ update msg model =
 
         Increment2 ->
             ( model
-            , emitEvent Increment
+            , Cmd.batch [ emitEvent Increment, getEvents ]
             )
 
         Decrement2 ->
@@ -121,29 +163,12 @@ update msg model =
             , Cmd.none
             )
 
-
-url : String
-url =
-    "http://localhost:8081/counter"
-
-
-getCounter : Cmd Msg
-getCounter =
-    Http.get url counterDecoder
-        |> Http.send SetCounter1
-
-
-sendEvent : Event -> Cmd Msg
-sendEvent event =
-    Http.post url (Http.jsonBody <| encodeEvent event) counterDecoder
-        |> Http.send SetCounter1
-
-
-emitEvent : Event -> Cmd Msg
-emitEvent event =
-    encodeEvent Decrement
-        |> Encode.encode 0
-        |> WebSocket.send streamUri
+        SetEvents str ->
+            let
+                _ =
+                    Debug.log "events" str
+            in
+            ( model, Cmd.none )
 
 
 
@@ -160,8 +185,8 @@ viewCounter ( increment, decrement ) counter =
 
 
 viewHttpCounter : ( Msg, Msg ) -> Result String Int -> Html Msg
-viewHttpCounter ( increment, decrement ) counter =
-    Result.map (viewCounter ( increment, decrement )) counter
+viewHttpCounter msgs counter =
+    Result.map (viewCounter msgs) counter
         |> Result.mapError Html.text
         |> unwrap
         |> List.singleton
@@ -179,7 +204,7 @@ view { counter1, counter2 } =
 
 
 
--- helpers
+-- Helpers
 
 
 unwrap : Result a a -> a

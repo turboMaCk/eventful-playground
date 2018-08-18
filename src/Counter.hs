@@ -1,5 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Counter
     ( Counter
@@ -8,15 +10,18 @@ module Counter
     , constructStream
     , getCurrentState
     , handleEvent
+    , allEvents
     ) where
 
-import Eventful (Projection(..), ExpectedVersion(..), EventStoreWriter, VersionedEventStoreReader, UUID)
+import Eventful (Projection(..), ExpectedVersion(..), EventStoreWriter, VersionedStreamEvent(..), StreamEvent(..)
+                , VersionedEventStoreReader, EventVersion(..), UUID)
 import Control.Concurrent.STM (STM)
-import Data.Aeson.Types (ToJSON, FromJSON, (.=), (.:))
+import Data.Aeson.Types (ToJSON, FromJSON, (.=), (.:), toJSON, toEncoding)
 import qualified Data.Aeson.Types as AT
 import qualified Eventful
 import qualified Control.Concurrent.STM as STM
 import qualified Eventful.Store.Memory as ESM
+
 
 -- MODEL
 
@@ -30,6 +35,13 @@ newtype Counter = Counter
 instance ToJSON Counter where
   toJSON (Counter state) = AT.object [ "state" .= state ]
   toEncoding (Counter state) = AT.pairs ("state" .= state)
+
+instance (ToJSON a) => ToJSON (VersionedStreamEvent a) where
+  toJSON (StreamEvent uuid (EventVersion v) event) =
+    AT.object [ "uuid" .= show uuid
+              , "version" .= show v
+              , "event" .= toJSON event
+              ]
 
 
 -- UPDATE
@@ -53,6 +65,11 @@ instance FromJSON CounterEvent where
   parseJSON invalid = AT.typeMismatch "Event" invalid
 
 
+instance ToJSON CounterEvent where
+  toJSON event = AT.object [ "msg" .= show event ]
+  toEncoding event = AT.pairs ( "state" .= show event )
+
+
 handleCounterEvent :: Counter -> CounterEvent -> Counter
 handleCounterEvent (Counter count) CounterIncremented = Counter (count + 1)
 handleCounterEvent (Counter count) CounterDecremented = Counter (count - 1)
@@ -63,14 +80,14 @@ type CounterProjection = Projection Counter CounterEvent
 
 
 counterProjection :: CounterProjection
-counterProjection =
-  Projection
+counterProjection = Projection
   { projectionSeed = Counter 0
   , projectionEventHandler = handleCounterEvent
   }
 
 
 -- Stream
+
 
 data CounterStream = CounterStream
   { uuid :: UUID
@@ -102,3 +119,9 @@ constructStream = do
     r = ESM.tvarEventStoreReader tvar
     identi = read "123e4567-e89b-12d3-a456-426655440000"
   pure $ CounterStream identi r w
+
+
+allEvents :: CounterStream -> IO [ VersionedStreamEvent CounterEvent]
+allEvents (CounterStream { uuid, reader }) = do
+  events' <- STM.atomically $ Eventful.getEvents reader $ Eventful.allEvents uuid
+  pure events'

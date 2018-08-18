@@ -10,6 +10,7 @@ import Counter (Counter, CounterEvent)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Network.Wai.Middleware.Cors (cors, corsRequestHeaders, simpleCorsResourcePolicy)
 import Servant.API.WebSocket (WebSocket)
+import Eventful (VersionedStreamEvent)
 import qualified CounterState as CS
 import qualified Network.WebSockets as WS
 
@@ -18,7 +19,9 @@ import qualified Network.WebSockets as WS
 
 type CounterApi = "counter" :> ReqBody '[JSON] CounterEvent :> Post '[JSON] Counter
              :<|> "counter" :> Get '[JSON] Counter
-             :<|> "stream" :> WebSocket
+             :<|> "counter" :> "stream" :> WebSocket
+             :<|> "counter" :> "events" :> Get '[JSON] [VersionedStreamEvent CounterEvent]
+             :<|> "counter" :> "events" :> "stream" :> WebSocket
 
 
 counterApi :: Proxy CounterApi
@@ -35,7 +38,7 @@ counterApp state =
 
 
 server :: CS.ServerState -> Server CounterApi
-server serverState = record :<|> current :<|> joinStream
+server serverState = record :<|> current :<|> joinStateStream :<|> history :<|> joinEventStream
   where
     record :: CounterEvent -> Handler Counter
     record = liftIO . CS.handleEvent serverState
@@ -43,8 +46,14 @@ server serverState = record :<|> current :<|> joinStream
     current :: Handler Counter
     current = liftIO $ CS.current serverState
 
-    joinStream :: MonadIO m => WS.Connection -> m ()
-    joinStream = liftIO . CS.newConnection serverState
+    history :: Handler [VersionedStreamEvent CounterEvent]
+    history = liftIO $ CS.getEvents serverState
+
+    joinStateStream :: MonadIO m => WS.Connection -> m ()
+    joinStateStream = liftIO . CS.subscribeToState serverState
+
+    joinEventStream :: MonadIO m => WS.Connection -> m ()
+    joinEventStream = liftIO . CS.subscribeToEvents serverState
 
 
 start :: IO ()
