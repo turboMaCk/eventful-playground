@@ -36,7 +36,16 @@ library
   build-depends:
       base >=4.7 && <5
     , eventful-core >=0.2.0 && <2
-    , eventful-postgresql >=0.2.0 && <2
+    , eventful-memory
+    , aeson
+    , stm
+    , websockets
+    , wai
+    , wai-cors
+    , warp
+    , servant
+    , servant-server
+    , servant-websockets
   default-language: Haskell2010
 
 executable eventfull-playground-exe
