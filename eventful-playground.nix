@@ -3,7 +3,7 @@
 , wai-cors, warp, websockets
 }:
 mkDerivation {
-  pname = "eventfull-playground";
+  pname = "eventful-playground";
   version = "0.1.0.0";
   src = ./.;
   isLibrary = true;
@@ -14,6 +14,6 @@ mkDerivation {
   ];
   executableHaskellDepends = [ base ];
   testHaskellDepends = [ base ];
-  homepage = "https://github.com/githubuser/eventfull-playground#readme";
+  homepage = "https://github.com/turboMaCk/eventful-playground#readme";
   license = stdenv.lib.licenses.bsd3;
 }
