@@ -1,0 +1,65 @@
+-- This file has been generated from package.yaml by hpack version 0.28.2.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: cfd0510bae7409e00e7d9a8ee38eaa1189b5d9fa1b5fca84434e9ced2e68ea06
+
+name:           eventfull-playground
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/githubuser/eventfull-playground#readme>
+homepage:       https://github.com/githubuser/eventfull-playground#readme
+bug-reports:    https://github.com/githubuser/eventfull-playground/issues
+author:         Author name here
+maintainer:     example@example.com
+copyright:      2018 Author name here
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+cabal-version:  >= 1.10
+extra-source-files:
+    ChangeLog.md
+    README.md
+
+source-repository head
+  type: git
+  location: https://github.com/githubuser/eventfull-playground
+
+library
+  exposed-modules:
+      Counter
+      CounterState
+      Server
+  other-modules:
+      Paths_eventfull_playground
+  hs-source-dirs:
+      src
+  build-depends:
+      base >=4.7 && <5
+    , eventful-core >=0.2.0 && <2
+    , eventful-postgresql >=0.2.0 && <2
+  default-language: Haskell2010
+
+executable eventfull-playground-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_eventfull_playground
+  hs-source-dirs:
+      app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , eventfull-playground
+  default-language: Haskell2010
+
+test-suite eventfull-playground-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_eventfull_playground
+  hs-source-dirs:
+      test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , eventfull-playground
+  default-language: Haskell2010
