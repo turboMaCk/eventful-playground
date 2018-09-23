@@ -141,7 +141,7 @@ sendEvent event =
 
 emitEvent : Event -> Cmd Msg
 emitEvent event =
-    encodeEvent Decrement
+    encodeEvent event
         |> Encode.encode 0
         |> WebSocket.send streamUri
 
