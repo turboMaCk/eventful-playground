@@ -1,4 +1,4 @@
-# Eventfull-Playground
+# Eventful-Playground
 
 Just experimentation with [eventful](https://github.com/jdreaver/eventful).
 
@@ -22,7 +22,7 @@ and wait...
 So far this is just dummy counter that can be incremented and decremented. State is stored in memmory.
 
 ```
-$ stack exec eventfull-playground-exe
+$ stack exec eventful-playground-exe
 ```
 
 This will start server on [localhost:8081](localhost:8081).

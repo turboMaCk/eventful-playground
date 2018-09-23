@@ -1,6 +1,6 @@
-name:                eventfull-playground
+name:                eventful-playground
 version:             0.1.0.0
-github:              "githubuser/eventfull-playground"
+github:              "turboMaCk/eventfull-playground"
 license:             BSD3
 author:              "Author name here"
 maintainer:          "example@example.com"
@@ -17,7 +17,7 @@ extra-source-files:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/githubuser/eventfull-playground#readme>
+description:         Please see the README on GitHub at <https://github.com/githubuser/eventfullplayground#readme>
 
 dependencies:
 - base >= 4.7 && < 5
@@ -29,7 +29,7 @@ library:
   - eventful-postgresql >= 0.2.0 && < 2
 
 executables:
-  eventfull-playground-exe:
+  eventful-playground-exe:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
@@ -37,10 +37,10 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - eventfull-playground
+    - eventful-playground
 
 tests:
-  eventfull-playground-test:
+  eventful-playground-test:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
@@ -48,4 +48,4 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - eventfull-playground
+    - eventful-playground

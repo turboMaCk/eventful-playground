@@ -1,3 +1,3 @@
-# Changelog for eventfull-playground
+# Changelog for eventful-playground
 
 ## Unreleased changes
